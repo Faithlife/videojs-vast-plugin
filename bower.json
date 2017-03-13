@@ -1,13 +1,14 @@
 {
   "name": "videojs-vast-plugin",
-  "version": "0.2.1",
-  "homepage": "https://github.com/theonion/videojs-vast-plugin",
+  "version": "0.2.2",
+  "homepage": "https://github.com/Faithlife/videojs-vast-plugin",
   "authors": [
     "Shaker Islam <sislam@theonion.com>",
     "Chris Sinchok <csinchok@theonion.com>",
     "Sean Bloomfield <sbloomfield@theonion.com>",
     "Andrew Kos <akos@theonion.com>",
-    "Vince Forgione <vforgione@theonion.com>"
+    "Vince Forgione <vforgione@theonion.com>",
+    "Jeff Huff <jeff@thehuffs.com>"
   ],
   "description": "A VAST plugin for VideoJS",
   "main": "videojs.vast.js",
@@ -29,8 +30,8 @@
     "lib"
   ],
   "dependencies": {
-    "videojs": "4.4.3",
+    "videojs": "5.17.0",
     "vast-client-js": "http://github.com/theonion/vast-client-js.git#a0529f00c96f5961c08ab0011df19fd124828e87",
-    "videojs-contrib-ads": "0.5.0"
+    "videojs-contrib-ads": "4.2.5"
   }
 }

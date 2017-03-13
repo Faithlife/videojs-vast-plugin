@@ -1,13 +1,13 @@
 {
   "name": "videojs-vast-plugin",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A VAST plugin for VideoJS",
-  "main": "vast.video.js",
+  "main": "videojs.vast.js",
   "directories": {
     "test": "test"
   },
   "dependencies": {
-    "videojs-contrib-ads": "^0.4.0"
+    "videojs-contrib-ads": "^4.0.0"
   },
   "devDependencies": {
     "chai": "~1.9.0",
@@ -39,7 +39,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/theonion/videojs-vast-plugin.git"
+    "url": "git://github.com/Faithlife/videojs-vast-plugin.git"
   },
   "keywords": [
     "video",
@@ -49,11 +49,12 @@
   "author": [
     "Shaker Islam <sislam@theonion.com>",
     "Chris Sinchok <csinchok@theonion.com>",
-    "Sean Bloomfield <sbloomfield@theonion.com>"
+    "Sean Bloomfield <sbloomfield@theonion.com>",
+    "Jeff Huff <jeff@thehuffs.com>"
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/theonion/videojs-vast-plugin/issues"
+    "url": "https://github.com/Faithlife/videojs-vast-plugin/issues"
   },
-  "homepage": "https://github.com/theonion/videojs-vast-plugin"
+  "homepage": "https://github.com/Faithlife/videojs-vast-plugin"
 }
