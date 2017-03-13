@@ -28,7 +28,7 @@
         var techOrder = player.options().techOrder;
         for (i = 0, j = techOrder.length; i < j; i++) {
           var techName = techOrder[i].charAt(0).toUpperCase() + techOrder[i].slice(1);
-          tech = window.videojs[techName];
+          tech = window.videojs.getTech(techName);
 
           // Check if the current tech is defined before continuing
           if (!tech) {
@@ -137,7 +137,7 @@
             },
             pauseFn = function() {
               player.vastTracker.setPaused(true);
-              player.one('play', function(){
+              player.one('adplay', function(){
                 player.vastTracker.setPaused(false);
               });
             },
@@ -145,19 +145,19 @@
               // Inform ad server we couldn't play the media file for this ad
               vast.util.track(player.vastTracker.ad.errorURLTemplates, {ERRORCODE: 405});
               errorOccurred = true;
-              player.trigger('ended');
+              player.trigger('adended');
             };
 
-        player.on('canplay', canplayFn);
-        player.on('timeupdate', timeupdateFn);
-        player.on('pause', pauseFn);
-        player.on('error', errorFn);
+        player.on('adcanplay', canplayFn);
+        player.on('adtimeupdate', timeupdateFn);
+        player.on('adpause', pauseFn);
+        player.on('aderror', errorFn);
 
         player.one('vast-preroll-removed', function() {
-          player.off('canplay', canplayFn);
-          player.off('timeupdate', timeupdateFn);
-          player.off('pause', pauseFn);
-          player.off('error', errorFn);
+          player.off('adcanplay', canplayFn);
+          player.off('adtimeupdate', timeupdateFn);
+          player.off('adpause', pauseFn);
+          player.off('aderror', errorFn);
           if (!errorOccurred) {
             player.vastTracker.complete();
           }
@@ -210,7 +210,7 @@
         player.vast.skipButton = skipButton;
         player.el().appendChild(skipButton);
 
-        player.on("timeupdate", player.vast.timeupdate);
+        player.on("adtimeupdate", player.vast.timeupdate);
 
         skipButton.onclick = function(e) {
           if((' ' + player.vast.skipButton.className + ' ').indexOf(' enabled ') >= 0) {
@@ -226,7 +226,7 @@
 
         player.vast.setupEvents();
 
-        player.one('ended', player.vast.tearDown);
+        player.one('adended', player.vast.tearDown);
 
         player.trigger('vast-preroll-ready');
       },
@@ -237,8 +237,8 @@
         player.vast.blocker.parentNode.removeChild(player.vast.blocker);
 
         // remove vast-specific events
-        player.off('timeupdate', player.vast.timeupdate);
-        player.off('ended', player.vast.tearDown);
+        player.off('adtimeupdate', player.vast.timeupdate);
+        player.off('adended', player.vast.tearDown);
 
         // end ad mode
         player.ads.endLinearAdMode();
