@@ -20,6 +20,50 @@
   },
 
   Vast = function (player, settings) {
+    var vastClientOptions = {};
+
+    if (settings.convertVast1 && settings.convertXSLUrl) {
+      vastClientOptions.urlhandler = (function(xsdUrl) {
+        return {
+          get: function(url, options, cb) {
+            try {
+              var xsdXHR = new window.XMLHttpRequest();
+              xsdXHR.open('GET', xsdUrl, true);
+              xsdXHR.overrideMimeType('text/xml');
+              xsdXHR.timeout = options.timeout || 0;
+              xsdXHR.withCredentials = options.withCredentials || false;
+              xsdXHR.onreadystatechange = function() {
+                if (xsdXHR.readyState === 4 && xsdXHR.status === 200 && xsdXHR.responseXML) {
+                  var xslStylesheet = xsdXHR.responseXML;
+                  var vastXHR = new window.XMLHttpRequest();
+                  vastXHR.open('GET', url, true);
+                  vastXHR.overrideMimeType('text/xml');
+                  vastXHR.timeout = options.timeout || 0;
+                  vastXHR.withCredentials = options.withCredentials || false;
+                  vastXHR.onreadystatechange = function() {
+                    if (vastXHR.readyState === 4 && vastXHR.status === 200 && vastXHR.responseXML) {
+                      var vastXml = vastXHR.responseXML;
+                      var xsltProcessor = new XSLTProcessor();
+                      xsltProcessor.importStylesheet(xslStylesheet);
+
+                      var vastConverted = xsltProcessor.transformToDocument(vastXml);
+                      cb(null, vastConverted);
+                    }
+                  };
+                  vastXHR.send();
+                }
+              };
+              xsdXHR.send();
+            } catch (err) {
+              cb(err);
+            }
+          },
+          supported: function() {
+            return true;
+          }
+        };
+      })(settings.convertXSLUrl);
+    }
 
     // return vast plugin
     return {
@@ -34,20 +78,23 @@
           if (!tech) {
             continue;
           }
-
           // Check if the browser supports this technology
           if (tech.isSupported()) {
             // Loop through each source object
             for (var a = 0, b = media_files.length; a < b; a++) {
               var media_file = media_files[a];
-              var source = {type:media_file.mimeType, src:media_file.fileURL};
+              var mimeType = media_file.mimeType;
+              if (!tech.canPlayType(mimeType) && /\/x-/.test(mimeType)) {
+                mimeType = mimeType.replace('x-', '');
+              }
+              var source = {type:mimeType, src:media_file.fileURL};
               // Check if source can be played with this technology
               if (tech.canPlaySource(source)) {
                 if (sourcesByFormat[techOrder[i]] === undefined) {
                   sourcesByFormat[techOrder[i]] = [];
                 }
                 sourcesByFormat[techOrder[i]].push({
-                  type:media_file.mimeType,
+                  type:mimeType,
                   src: media_file.fileURL,
                   width: media_file.width,
                   height: media_file.height
@@ -71,10 +118,8 @@
 
       getContent: function () {
 
-        // query vast url given in settings
-        vast.client.get(settings.url, function(response) {
+        vast.client.get(settings.url, vastClientOptions, function(response) {
           if (response) {
-            // we got a response, deal with it
             for (var adIdx = 0; adIdx < response.ads.length; adIdx++) {
               var ad = response.ads[adIdx];
               player.vast.companion = undefined;
@@ -124,36 +169,36 @@
       },
 
       setupEvents: function() {
-
         var errorOccurred = false,
-            canplayFn = function() {
-              player.vastTracker.load();
-            },
-            timeupdateFn = function() {
-              if (isNaN(player.vastTracker.assetDuration)) {
-                player.vastTracker.assetDuration = player.duration();
-              }
-              player.vastTracker.setProgress(player.currentTime());
-            },
-            pauseFn = function() {
-              player.vastTracker.setPaused(true);
-              player.one('adplay', function(){
-                player.vastTracker.setPaused(false);
-              });
-            },
-            errorFn = function() {
-              // Inform ad server we couldn't play the media file for this ad
-              vast.util.track(player.vastTracker.ad.errorURLTemplates, {ERRORCODE: 405});
-              errorOccurred = true;
-              player.trigger('adended');
-            };
+
+        canplayFn = function() {
+          player.vastTracker.load();
+        },
+        timeupdateFn = function() {
+          if (isNaN(player.vastTracker.assetDuration)) {
+            player.vastTracker.assetDuration = player.duration();
+          }
+          player.vastTracker.setProgress(player.currentTime());
+        },
+        pauseFn = function() {
+          player.vastTracker.setPaused(true);
+          player.one('adplay', function() {
+            player.vastTracker.setPaused(false);
+          });
+        },
+        errorFn = function() {
+          // Inform ad server we couldn't play the media file for this ad
+          vast.util.track(player.vastTracker.ad.errorURLTemplates, {ERRORCODE: 405});
+          errorOccurred = true;
+          player.trigger('adserror');
+        };
 
         player.on('adcanplay', canplayFn);
         player.on('adtimeupdate', timeupdateFn);
         player.on('adpause', pauseFn);
         player.on('aderror', errorFn);
 
-        player.one('vast-preroll-removed', function() {
+        player.one('vast-ad-removed', function() {
           player.off('adcanplay', canplayFn);
           player.off('adtimeupdate', timeupdateFn);
           player.off('adpause', pauseFn);
@@ -164,7 +209,7 @@
         });
       },
 
-      preroll: function() {
+      playAd: function() {
         player.ads.startLinearAdMode();
         player.vast.showControls = player.controls();
         if (player.vast.showControls) {
@@ -197,7 +242,7 @@
           if (clicktrackers) {
             player.vastTracker.trackURLs([clicktrackers]);
           }
-          player.trigger("adclick");
+          player.trigger("ads-click");
         };
         player.vast.blocker = blocker;
         player.el().insertBefore(blocker, player.controlBar.el());
@@ -228,11 +273,11 @@
 
         player.one('adended', player.vast.tearDown);
 
-        player.trigger('vast-preroll-ready');
+        player.trigger('vast-ad-ready');
       },
 
       tearDown: function() {
-        // remove preroll buttons
+        // remove ad buttons
         player.vast.skipButton.parentNode.removeChild(player.vast.skipButton);
         player.vast.blocker.parentNode.removeChild(player.vast.blocker);
 
@@ -248,7 +293,7 @@
           player.controls(true);
         }
 
-        player.trigger('vast-preroll-removed');
+        player.trigger('vast-ad-removed');
       },
 
       timeupdate: function(e) {
@@ -257,7 +302,7 @@
         if(timeLeft > 0) {
           player.vast.skipButton.innerHTML = "Skip in " + timeLeft + "...";
         } else {
-          if((' ' + player.vast.skipButton.className + ' ').indexOf(' enabled ') === -1){
+          if((' ' + player.vast.skipButton.className + ' ').indexOf(' enabled ') === -1) {
             player.vast.skipButton.className += " enabled";
             player.vast.skipButton.innerHTML = "Skip";
           }
@@ -285,19 +330,19 @@
       player.trigger('adsready');
     });
 
-    player.on('vast-preroll-ready', function () {
-      // start playing preroll, note: this should happen this way no matter what, even if autoplay
-      //  has been disabled since the preroll function shouldn't run until the user/autoplay has
-      //  caused the main video to trigger this preroll function
+    player.on('vast-ad-ready', function () {
+      // start playing ad, note: this should happen this way no matter what, even if autoplay
+      // has been disabled since the playAd function shouldn't run until the user/autoplay has
+      // caused the main video to trigger the playAd function
       player.play();
     });
 
-    player.on('vast-preroll-removed', function () {
-      // preroll done or removed, start playing the actual video
+    player.on('vast-ad-removed', function () {
+      // ad done or removed, start playing the actual video
       player.play();
     });
 
-    player.on('contentupdate', function(){
+    player.on('contentupdate', function() {
       // videojs-ads triggers this when src changes
       player.vast.getContent(settings.url);
     });
@@ -308,8 +353,10 @@
         player.trigger('adscanceled');
         return null;
       }
+      // Check if there are no pre-roll ads
+
       // set up and start playing preroll
-      player.vast.preroll();
+      player.vast.playAd();
     });
 
     // make an ads request immediately so we're ready when the viewer hits "play"
