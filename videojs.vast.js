@@ -120,50 +120,47 @@
 
         vast.client.get(settings.url, vastClientOptions, function(response) {
           if (response) {
+            var otherAds = [];
             for (var adIdx = 0; adIdx < response.ads.length; adIdx++) {
               var ad = response.ads[adIdx];
-              player.vast.companion = undefined;
+              var currentAd = {};
+
+              if (settings.preRollId && settings.preRollId === ad.id) {
+                player.vast.preRoll = currentAd;
+              } else if (settings.postRollId && settings.postRollId === ad.id) {
+                player.vast.postRoll = currentAd;
+              } else {
+                otherAds.push(currentAd);
+              }
+
               for (var creaIdx = 0; creaIdx < ad.creatives.length; creaIdx++) {
                 var creative = ad.creatives[creaIdx], foundCreative = false, foundCompanion = false;
+
                 if (creative.type === "linear" && !foundCreative) {
-
                   if (creative.mediaFiles.length) {
-
-                    player.vast.sources = player.vast.createSourceObjects(creative.mediaFiles);
-
-                    if (!player.vast.sources.length) {
-                      player.trigger('adscanceled');
-                      return;
-                    }
-
-                    player.vastTracker = new vast.tracker(ad, creative);
+                    currentAd.ad = ad;
+                    currentAd.creative = creative;
+                    currentAd.sources = player.vast.createSourceObjects(creative.mediaFiles);
 
                     foundCreative = true;
                   }
-
                 } else if (creative.type === "companion" && !foundCompanion) {
-
-                  player.vast.companion = creative;
-
+                  currentAd.companion = creative;
                   foundCompanion = true;
-
                 }
               }
+            }
 
-              if (player.vastTracker) {
-                // vast tracker and content is ready to go, trigger event
-                player.trigger('vast-ready');
-                break;
-              } else {
-                // Inform ad server we can't find suitable media file for this ad
-                vast.util.track(ad.errorURLTemplates, {ERRORCODE: 403});
-              }
+            if (!player.vast.preRoll && otherAds && otherAds.length) {
+              player.vast.preRoll = otherAds.shift();
             }
           }
 
-          if (!player.vastTracker) {
-            // No pre-roll, start video
+          if (!player.vast.preRoll && !player.vast.postRoll) {
+            // No pre-roll or post-roll, start video
             player.trigger('adscanceled');
+          } else {
+            player.trigger('vast-ready');
           }
         });
       },
@@ -209,15 +206,17 @@
         });
       },
 
-      playAd: function() {
+      playAd: function(ad) {
         player.ads.startLinearAdMode();
         player.vast.showControls = player.controls();
         if (player.vast.showControls) {
           player.controls(false);
         }
 
-        // load linear ad sources and start playing them
-        player.src(player.vast.sources);
+        // Load the Ad configuration
+        player.vastTracker = new vast.tracker(ad.ad, ad.creative);
+        player.vast.companion = ad.creative;
+        player.src(ad.sources);
 
         var clickthrough;
         if (player.vastTracker.clickThroughURLTemplate) {
@@ -354,9 +353,19 @@
         return null;
       }
       // Check if there are no pre-roll ads
+      if (!player.vast.preRoll) {
+        player.trigger('nopreroll')
+      } else {
+        player.vast.playAd(player.vast.preRoll);
+      }
+    });
 
-      // set up and start playing preroll
-      player.vast.playAd();
+    player.on('contentended', function() {
+      if (!player.vast.postRoll) {
+        player.trigger('nopostroll');
+      } else {
+        player.vast.playAd(player.vast.postRoll);
+      }
     });
 
     // make an ads request immediately so we're ready when the viewer hits "play"
