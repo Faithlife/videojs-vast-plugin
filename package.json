@@ -1,6 +1,6 @@
 {
   "name": "videojs-vast-plugin",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "A VAST plugin for VideoJS",
   "main": "videojs.vast.js",
   "directories": {

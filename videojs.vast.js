@@ -272,6 +272,7 @@
 
         player.one('adended', player.vast.tearDown);
 
+        ad.played = true;
         player.trigger('vast-ad-ready');
       },
 
@@ -353,7 +354,7 @@
         return null;
       }
       // Check if there are no pre-roll ads
-      if (!player.vast.preRoll) {
+      if (!player.vast.preRoll || player.vast.preRoll.played) {
         player.trigger('nopreroll')
       } else {
         player.vast.playAd(player.vast.preRoll);
@@ -361,7 +362,7 @@
     });
 
     player.on('contentended', function() {
-      if (!player.vast.postRoll) {
+      if (!player.vast.postRoll || player.vast.postRoll.played) {
         player.trigger('nopostroll');
       } else {
         player.vast.playAd(player.vast.postRoll);
